@@ -1,5 +1,5 @@
 name: Build My Windows EXE
-on: [push, workflow_dispatch] # 當你上傳檔案或手動點擊時執行
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -14,15 +14,13 @@ jobs:
           
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install pyinstaller requests websocket-client pynacl cffi
           
       - name: Create EXE
+        # 這裡加入了 --collect-all 確保所有加密零件都被抓進去
         run: |
-          pyinstaller --onefile --collect-submodules nacl --name "StandX_Bot" main.py
-          
-      - name: Create EXE
-        run: |
-          pyinstaller --onefile --name "StandX_Bot" main.py
+          pyinstaller --onefile --collect-all nacl --name "StandX_Bot" main.py
           
       - name: Upload EXE
         uses: actions/upload-artifact@v4
