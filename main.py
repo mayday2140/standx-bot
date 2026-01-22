@@ -12,7 +12,7 @@ from nacl.signing import SigningKey
 from nacl.encoding import HexEncoder
 
 # ==========================================
-# 🛠️ 讀取設定檔 (支援 .exe 執行環境)
+# 🛠️ 讀取設定檔
 # ==========================================
 def load_config():
     if getattr(sys, 'frozen', False):
@@ -27,7 +27,6 @@ def load_config():
     with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-# 載入參數
 cfg = load_config()
 JWT_TOKEN = cfg["JWT_TOKEN"]
 PRIVATE_KEY_HEX = cfg["PRIVATE_KEY_HEX"]
@@ -81,34 +80,53 @@ class StandXBot:
             "x-request-signature": sig
         }
 
+    def cancel_all_orders(self):
+        payload = json.dumps({"symbol": SYMBOL})
+        return self.session.post(f"{BASE_URL}/api/cancel_all", data=payload, headers=self._get_headers(payload))
+
+    def place_order(self, side, price):
+        payload = {
+            "symbol": SYMBOL,
+            "side": side,
+            "order_type": "limit",
+            "qty": ORDER_QTY,
+            "price": str(price),
+            "time_in_force": "gtc"
+        }
+        js = json.dumps(payload)
+        return self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js)).json()
+
 # ==========================================
 # 🚀 執行主循環
 # ==========================================
 def run():
     bot = StandXBot()
-    print(f"✅ 機器人正式啟動 | 標的: {SYMBOL}")
+    print(f"✅ 機器人啟動中...")
     
     while True:
         if bot.mid_price == 0:
-            print("⏳ 等待市場價格中...")
+            print("⏳ 等待價格數據...")
             time.sleep(2)
             continue
         
+        # 1. 計算買賣價格
         buy_p = math.floor(bot.mid_price * (1 - TARGET_BPS/10000))
         sell_p = math.ceil(bot.mid_price * (1 + TARGET_BPS/10000))
         
+        # 2. 顯示狀態
         os.system('cls' if os.name == 'nt' else 'clear')
-               print(f"--- StandX 運行中 ---")
+        print(f"--- StandX MM 運行中 ---")
         print(f"當前市價: {bot.mid_price}")
-        print(f"正式執行掛單: 買入 {buy_p} | 賣出 {sell_p}")
+        print(f"嘗試掛單: Buy {buy_p} | Sell {sell_p}")
         
-        # 執行發送訂單
+        # 3. 先取消所有舊訂單，再掛新單 (防止訂單塞爆)
         try:
-            res_buy = bot.place_order("buy", buy_p)
-            res_sell = bot.place_order("sell", sell_p)
-            print(f"回應: 買入 {res_buy.get('status')} | 賣出 {res_sell.get('status')}")
+            bot.cancel_all_orders()
+            res_b = bot.place_order("buy", buy_p)
+            res_s = bot.place_order("sell", sell_p)
+            print(f"結果: 買單 {res_b.get('status', 'Error')} | 賣單 {res_s.get('status', 'Error')}")
         except Exception as e:
-            print(f"下單失敗: {e}")
+            print(f"下單異常: {e}")
         
         time.sleep(REFRESH_RATE)
 
@@ -116,5 +134,5 @@ if __name__ == "__main__":
     try:
         run()
     except Exception as e:
-        print(f"\n❌ 程式發生錯誤: {e}")
-        input("\n按 Enter 鍵退出...")
+        print(f"發生錯誤: {e}")
+        input("按 Enter 鍵退出...")
