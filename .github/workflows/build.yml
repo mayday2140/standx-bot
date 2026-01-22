@@ -17,12 +17,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller requests websocket-client pynacl cffi
           
-      - name: Create EXE
-        # 這裡加入了 --collect-all 確保所有加密零件都被抓進去
+      - name: Verify main.py existence
         run: |
-          pyinstaller --onefile --collect-all nacl --name "StandX_Bot" main.py
+          if (Test-Path "main.py") { echo "main.py exists" } else { echo "main.py NOT FOUND"; exit 1 }
+
+      - name: Create EXE
+        # 使用 --hidden-import 確保加密組件強制打包
+        run: |
+          pyinstaller --onefile --clean --hidden-import=_cffi_backend --collect-all nacl --name "StandX_Bot" main.py
           
       - name: Upload EXE
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: StandX_Bot_Windows_Version
