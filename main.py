@@ -89,12 +89,16 @@ class StandXBot:
             "symbol": SYMBOL,
             "side": side,
             "order_type": "limit",
-            "qty": ORDER_QTY,
+            "qty": str(ORDER_QTY),
             "price": str(price),
             "time_in_force": "gtc"
         }
         js = json.dumps(payload)
-        return self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js)).json()
+        response = self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js))
+        try:
+            return response.json()
+        except:
+            return {"status": "Error", "msg": response.text}
 
 # ==========================================
 # 🚀 執行主循環
@@ -109,24 +113,32 @@ def run():
             time.sleep(2)
             continue
         
-        # 1. 計算買賣價格
         buy_p = math.floor(bot.mid_price * (1 - TARGET_BPS/10000))
         sell_p = math.ceil(bot.mid_price * (1 + TARGET_BPS/10000))
         
-        # 2. 顯示狀態
         os.system('cls' if os.name == 'nt' else 'clear')
         print(f"--- StandX MM 運行中 ---")
         print(f"當前市價: {bot.mid_price}")
         print(f"嘗試掛單: Buy {buy_p} | Sell {sell_p}")
         
-        # 3. 先取消所有舊訂單，再掛新單 (防止訂單塞爆)
         try:
             bot.cancel_all_orders()
             res_b = bot.place_order("buy", buy_p)
             res_s = bot.place_order("sell", sell_p)
-            print(f"結果: 買單 {res_b.get('status', 'Error')} | 賣單 {res_s.get('status', 'Error')}")
+            
+            # 如果失敗，印出伺服器給的錯誤原因
+            if res_b.get("status") != "success":
+                print(f"🚩 買單失敗原因: {res_b.get('msg', 'Unknown')}")
+            else:
+                print(f"✅ 買單成功!")
+                
+            if res_s.get("status") != "success":
+                print(f"🚩 賣單失敗原因: {res_s.get('msg', 'Unknown')}")
+            else:
+                print(f"✅ 賣單成功!")
+                
         except Exception as e:
-            print(f"下單異常: {e}")
+            print(f"❌ 發生異常: {e}")
         
         time.sleep(REFRESH_RATE)
 
