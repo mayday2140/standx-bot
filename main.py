@@ -98,9 +98,17 @@ def run():
         sell_p = math.ceil(bot.mid_price * (1 + TARGET_BPS/10000))
         
         os.system('cls' if os.name == 'nt' else 'clear')
-        print(f"--- StandX 運行中 ---")
+               print(f"--- StandX 運行中 ---")
         print(f"當前市價: {bot.mid_price}")
-        print(f"預計掛單價格: 買入 {buy_p} | 賣出 {sell_p}")
+        print(f"正式執行掛單: 買入 {buy_p} | 賣出 {sell_p}")
+        
+        # 執行發送訂單
+        try:
+            res_buy = bot.place_order("buy", buy_p)
+            res_sell = bot.place_order("sell", sell_p)
+            print(f"回應: 買入 {res_buy.get('status')} | 賣出 {res_sell.get('status')}")
+        except Exception as e:
+            print(f"下單失敗: {e}")
         
         time.sleep(REFRESH_RATE)
 
