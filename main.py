@@ -91,7 +91,8 @@ class StandXBot:
             "order_type": "limit",
             "qty": str(ORDER_QTY),
             "price": str(price),
-            "time_in_force": "gtc"
+            "time_in_force": "gtc",
+            "reduce_only": False  # ✨ 新增關鍵參數
         }
         js = json.dumps(payload)
         response = self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js))
@@ -126,16 +127,19 @@ def run():
             res_b = bot.place_order("buy", buy_p)
             res_s = bot.place_order("sell", sell_p)
             
-            # 如果失敗，印出伺服器給的錯誤原因
-            if res_b.get("status") != "success":
-                print(f"🚩 買單失敗原因: {res_b.get('msg', 'Unknown')}")
+            # 狀態顯示優化
+            b_status = res_b.get("status")
+            s_status = res_s.get("status")
+            
+            if b_status == "success":
+                print(f"✅ 買單已成功掛出")
             else:
-                print(f"✅ 買單成功!")
+                print(f"🚩 買單失敗: {res_b.get('msg', '未知錯誤')}")
                 
-            if res_s.get("status") != "success":
-                print(f"🚩 賣單失敗原因: {res_s.get('msg', 'Unknown')}")
+            if s_status == "success":
+                print(f"✅ 賣單已成功掛出")
             else:
-                print(f"✅ 賣單成功!")
+                print(f"🚩 賣單失敗: {res_s.get('msg', '未知錯誤')}")
                 
         except Exception as e:
             print(f"❌ 發生異常: {e}")
