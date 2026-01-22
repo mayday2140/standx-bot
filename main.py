@@ -121,4 +121,9 @@ def run():
         time.sleep(REFRESH_RATE)
 
 if __name__ == "__main__":
-    run()
+   try:
+        run()
+    except Exception as e:
+        print(f"\n❌ 程式發生嚴重錯誤: {e}")
+        print("\n請檢查 config.json 設定是否正確。")
+        input("\n按 Enter 鍵退出...") # 這行會防止視窗直接關閉
