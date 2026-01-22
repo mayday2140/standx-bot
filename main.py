@@ -12,7 +12,7 @@ from nacl.signing import SigningKey
 from nacl.encoding import HexEncoder
 
 # ==========================================
-# 🛠️ 讀取設定檔
+# ⚙️ 核心讀取與初始化
 # ==========================================
 def load_config():
     if getattr(sys, 'frozen', False):
@@ -32,13 +32,10 @@ JWT_TOKEN = cfg["JWT_TOKEN"]
 PRIVATE_KEY_HEX = cfg["PRIVATE_KEY_HEX"]
 SYMBOL = cfg["SYMBOL"]
 BASE_URL = cfg["BASE_URL"]
-ORDER_QTY = cfg["ORDER_QTY"]
+ORDER_QTY = str(cfg["ORDER_QTY"]) # 確保為字串
 TARGET_BPS = float(cfg.get("TARGET_BPS", 8))
 REFRESH_RATE = float(cfg.get("REFRESH_RATE", 0.5))
 
-# ==========================================
-# 📡 核心交易類別
-# ==========================================
 class StandXBot:
     def __init__(self):
         key_hex = PRIVATE_KEY_HEX.replace("0x", "")
@@ -66,8 +63,7 @@ class StandXBot:
                     on_message=self._on_message
                 )
                 ws.run_forever()
-            except:
-                time.sleep(5)
+            except: time.sleep(5)
 
     def _get_headers(self, payload):
         rid, ts = str(uuid.uuid4()), int(time.time() * 1000)
@@ -81,74 +77,69 @@ class StandXBot:
         }
 
     def cancel_all_orders(self):
-        payload = json.dumps({"symbol": SYMBOL})
-        return self.session.post(f"{BASE_URL}/api/cancel_all", data=payload, headers=self._get_headers(payload))
+        payload_data = {"symbol": SYMBOL}
+        js = json.dumps(payload_data)
+        return self.session.post(f"{BASE_URL}/api/cancel_all", data=js, headers=self._get_headers(js))
 
     def place_order(self, side, price):
         payload = {
             "symbol": SYMBOL,
             "side": side,
             "order_type": "limit",
-            "qty": str(ORDER_QTY),
+            "qty": ORDER_QTY,
             "price": str(price),
             "time_in_force": "gtc",
-            "reduce_only": False  # ✨ 新增關鍵參數
+            "reduce_only": False
         }
         js = json.dumps(payload)
-        response = self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js))
+        resp = self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js))
         try:
-            return response.json()
+            return resp.json()
         except:
-            return {"status": "Error", "msg": response.text}
+            return {"status": "error", "message": resp.text}
 
 # ==========================================
-# 🚀 執行主循環
+# 🚀 啟動邏輯
 # ==========================================
 def run():
     bot = StandXBot()
-    print(f"✅ 機器人啟動中...")
+    print("🚀 正在連線市場...")
     
     while True:
         if bot.mid_price == 0:
-            print("⏳ 等待價格數據...")
-            time.sleep(2)
+            time.sleep(1)
             continue
         
         buy_p = math.floor(bot.mid_price * (1 - TARGET_BPS/10000))
         sell_p = math.ceil(bot.mid_price * (1 + TARGET_BPS/10000))
         
         os.system('cls' if os.name == 'nt' else 'clear')
-        print(f"--- StandX MM 運行中 ---")
-        print(f"當前市價: {bot.mid_price}")
-        print(f"嘗試掛單: Buy {buy_p} | Sell {sell_p}")
-        
+        print(f"--- StandX MM 運作中 ---")
+        print(f"當前價格: {bot.mid_price}")
+        print(f"計畫掛單: 買 {buy_p} | 賣 {sell_p}")
+        print("-" * 30)
+
         try:
+            # 同步執行撤單與掛單
             bot.cancel_all_orders()
             res_b = bot.place_order("buy", buy_p)
             res_s = bot.place_order("sell", sell_p)
             
-            # 狀態顯示優化
-            b_status = res_b.get("status")
-            s_status = res_s.get("status")
+            # 詳細解析狀態
+            b_msg = "成功" if res_b.get("status") == "success" else res_b.get("message", "拒絕")
+            s_msg = "成功" if res_s.get("status") == "success" else res_s.get("message", "拒絕")
             
-            if b_status == "success":
-                print(f"✅ 買單已成功掛出")
-            else:
-                print(f"🚩 買單失敗: {res_b.get('msg', '未知錯誤')}")
-                
-            if s_status == "success":
-                print(f"✅ 賣單已成功掛出")
-            else:
-                print(f"🚩 賣單失敗: {res_s.get('msg', '未知錯誤')}")
-                
+            print(f"💰 買單狀態: {b_msg}")
+            print(f"💰 賣單狀態: {s_msg}")
+            
         except Exception as e:
-            print(f"❌ 發生異常: {e}")
-        
+            print(f"⚠️ 異常: {e}")
+
         time.sleep(REFRESH_RATE)
 
 if __name__ == "__main__":
     try:
         run()
     except Exception as e:
-        print(f"發生錯誤: {e}")
-        input("按 Enter 鍵退出...")
+        print(f"❌ 崩潰: {e}")
+        input("按 Enter 鍵關閉...")
