@@ -1,0 +1,27 @@
+name: Build My Windows EXE
+on: [push, workflow_dispatch] # 當你上傳檔案或手動點擊時執行
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller requests websocket-client pynacl
+          
+      - name: Create EXE
+        run: |
+          pyinstaller --onefile --name "StandX_Bot" main.py
+          
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: StandX_Bot_Windows_Version
+          path: dist/StandX_Bot.exe
