@@ -42,7 +42,6 @@ REFRESH_RATE = float(cfg.get("REFRESH_RATE", 0.5))
 # ==========================================
 class StandXBot:
     def __init__(self):
-        # 處理私鑰格式
         key_hex = PRIVATE_KEY_HEX.replace("0x", "")
         self.signing_key = SigningKey(key_hex, encoder=HexEncoder)
         self.session = requests.Session()
@@ -68,7 +67,8 @@ class StandXBot:
                     on_message=self._on_message
                 )
                 ws.run_forever()
-            except: time.sleep(5)
+            except:
+                time.sleep(5)
 
     def _get_headers(self, payload):
         rid, ts = str(uuid.uuid4()), int(time.time() * 1000)
@@ -80,18 +80,6 @@ class StandXBot:
             "x-request-timestamp": str(ts),
             "x-request-signature": sig
         }
-
-    def place_order(self, side, price):
-        payload = {
-            "symbol": SYMBOL,
-            "side": side,
-            "order_type": "limit",
-            "qty": ORDER_QTY,
-            "price": str(price),
-            "time_in_force": "gtc"
-        }
-        js = json.dumps(payload)
-        return self.session.post(f"{BASE_URL}/api/new_order", data=js, headers=self._get_headers(js)).json()
 
 # ==========================================
 # 🚀 執行主循環
@@ -106,24 +94,19 @@ def run():
             time.sleep(2)
             continue
         
-        # 計算買賣價格 (簡易 Market Making 邏輯)
         buy_p = math.floor(bot.mid_price * (1 - TARGET_BPS/10000))
         sell_p = math.ceil(bot.mid_price * (1 + TARGET_BPS/10000))
         
         os.system('cls' if os.name == 'nt' else 'clear')
         print(f"--- StandX 運行中 ---")
         print(f"當前市價: {bot.mid_price}")
-        print(f"預計掛單: 買入 {buy_p} | 賣出 {sell_p}")
-        
-        # 這裡會根據你的策略發送訂單，建議先確認價格無誤
-        # bot.place_order("buy", buy_p)
+        print(f"預計掛單價格: 買入 {buy_p} | 賣出 {sell_p}")
         
         time.sleep(REFRESH_RATE)
 
 if __name__ == "__main__":
-   try:
+    try:
         run()
     except Exception as e:
-        print(f"\n❌ 程式發生嚴重錯誤: {e}")
-        print("\n請檢查 config.json 設定是否正確。")
-        input("\n按 Enter 鍵退出...") # 這行會防止視窗直接關閉
+        print(f"\n❌ 程式發生錯誤: {e}")
+        input("\n按 Enter 鍵退出...")
